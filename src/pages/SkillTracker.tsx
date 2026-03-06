@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen, ExternalLink, Sparkles } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import GlassCard from "@/components/dashboard/GlassCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
@@ -10,8 +10,31 @@ const levelColor = (v: number) => (v >= 80 ? "text-secondary" : v >= 60 ? "text-
 
 const SkillTracker = () => {
   return (
-    <div>
-      <DashboardNavbar title="Skill Tracker" />
+    <div className="min-h-screen">
+      <DashboardNavbar title="Skill Tracker" showBack />
+
+      {/* Hero banner */}
+      <div className="px-6 pt-6 pb-2">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative overflow-hidden rounded-3xl p-8"
+          style={{ background: "var(--gradient-primary)" }}
+        >
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 80% 20%, hsl(260 80% 70% / 0.4) 0%, transparent 60%), radial-gradient(circle at 20% 80%, hsl(200 80% 60% / 0.3) 0%, transparent 50%)" }} />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-primary-foreground">Your Skill Dashboard</h2>
+              <p className="text-sm text-primary-foreground/80 mt-0.5">Track progress across {skills.length} skills and discover resources</p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
       <div className="p-6">
         <div className="grid md:grid-cols-2 gap-5">
           {skills.map((skill, i) => (
