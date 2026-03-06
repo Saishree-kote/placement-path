@@ -148,7 +148,7 @@
   }
 
   .glass-navbar {
-    background: hsla(0, 0%, 100%, 0.7);
+    background: hsla(var(--glass-bg));
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid hsla(var(--glass-border));
