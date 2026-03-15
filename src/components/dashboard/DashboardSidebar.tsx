@@ -3,16 +3,21 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Brain, BarChart3, Building2,
   Users, Settings, GraduationCap, ChevronLeft, ChevronRight,
+  Map, MessageSquare, UserCheck, Briefcase, BookOpen
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/dashboard/roadmap", label: "Preparation Roadmap", icon: Map },
+  { path: "/dashboard/applications", label: "Job Applications", icon: Briefcase },
   { path: "/dashboard/resume", label: "Resume Analyzer", icon: FileText },
   { path: "/dashboard/aptitude", label: "Aptitude Practice", icon: Brain },
   { path: "/dashboard/skills", label: "Skill Tracker", icon: BarChart3 },
+  { path: "/dashboard/community", label: "Community", icon: Users },
+  { path: "/dashboard/resources", label: "Prep Resources", icon: BookOpen },
   { path: "/dashboard/companies", label: "Company Eligibility", icon: Building2 },
-  { path: "/dashboard/interview", label: "Mock Interview", icon: Users },
+  { path: "/dashboard/interview", label: "Mock Interview", icon: UserCheck },
   { path: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
@@ -53,11 +58,10 @@ const DashboardSidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               <AnimatePresence>

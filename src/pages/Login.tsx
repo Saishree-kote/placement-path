@@ -1,24 +1,52 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, GraduationCap, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Mail, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { login } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const errs: typeof errors = {};
-    if (!email) errs.email = "Email is required";
+    if (isSignUp && !name.trim()) errs.name = "Full name is required";
+    if (!email.trim()) errs.email = "Email is required";
     if (!password) errs.password = "Password is required";
+    else if (isSignUp && password.length < 6) errs.password = "Password must be at least 6 characters";
+    
     setErrors(errs);
-    if (Object.keys(errs).length === 0) navigate("/dashboard");
+    
+    if (Object.keys(errs).length === 0) {
+      if (isSignUp) {
+        toast({ title: "Account created!", description: "Welcome to PlacePrep." });
+        login(email, name);
+      } else {
+        const userName = email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        toast({ title: "Welcome back!", description: "Successfully signed in." });
+        login(email, userName);
+      }
+      navigate("/dashboard");
+    }
+  };
+
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
+    setErrors({});
+    setName("");
+    setEmail("");
+    setPassword("");
   };
 
   return (
@@ -33,11 +61,39 @@ const Login = () => {
           <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-6 h-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isSignUp ? "Create an account" : "Welcome back"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isSignUp ? "Join PlacePrep and start your journey" : "Sign in to your account"}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AnimatePresence mode="popLayout">
+            {isSignUp && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -10 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="relative mt-1">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10 rounded-xl h-11 bg-muted/30 border-border/50 focus:border-primary transition-colors"
+                  />
+                </div>
+                {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -51,6 +107,7 @@ const Login = () => {
             </div>
             {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
           </div>
+          
           <div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -72,8 +129,8 @@ const Login = () => {
             {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
           </div>
 
-          <Button type="submit" className="w-full rounded-xl h-11 bg-primary text-primary-foreground btn-glow font-semibold">
-            Sign In
+          <Button type="submit" className="w-full rounded-xl h-11 bg-primary text-primary-foreground btn-glow font-semibold mt-2">
+            {isSignUp ? "Sign Up" : "Sign In"}
           </Button>
         </form>
 
@@ -86,7 +143,10 @@ const Login = () => {
         <Button
           variant="outline"
           className="w-full rounded-xl h-11 border-border/50 font-medium"
-          onClick={() => navigate("/dashboard")}
+          onClick={() => {
+            login("demo@placeprep.com", "Demo User");
+            navigate("/dashboard");
+          }}
         >
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -98,8 +158,13 @@ const Login = () => {
         </Button>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Don't have an account?{" "}
-          <span className="text-primary font-medium cursor-pointer hover:underline">Sign up</span>
+          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          <span
+            className="text-primary font-medium cursor-pointer hover:underline"
+            onClick={toggleMode}
+          >
+            {isSignUp ? "Sign In" : "Sign up"}
+          </span>
         </p>
       </motion.div>
     </div>
