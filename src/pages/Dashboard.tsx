@@ -8,6 +8,8 @@ import GlassCard from "@/components/dashboard/GlassCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import ProgressWidget from "@/components/dashboard/ProgressWidget";
+import BadgeSystem from "@/components/dashboard/BadgeSystem";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ const Dashboard = () => {
     <div>
       <DashboardNavbar title="Dashboard" />
       <div className="p-6 space-y-6">
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard title="Placement Readiness" value="82%" icon={Award} trend={{ value: 5, positive: true }} variant="primary" delay={0} />
@@ -29,6 +32,9 @@ const Dashboard = () => {
           <StatCard title="Skill Score" value="75%" icon={BarChart3} trend={{ value: 2, positive: false }} variant="primary" delay={0.2} />
         </div>
 
+        {/* ✅ NEW: Progress Widget (Task 1) — full width below stats */}
+        <ProgressWidget />
+
         {/* Charts */}
         <div className="grid lg:grid-cols-2 gap-6">
           <RadarSkillChart />
@@ -36,6 +42,7 @@ const Dashboard = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
+
           {/* Main Feed */}
           <div className="lg:col-span-2 space-y-6">
             <GlassCard>
@@ -62,7 +69,7 @@ const Dashboard = () => {
                   <div key={i} className="flex gap-4 relative">
                     {i !== 2 && <div className="absolute left-2.5 top-7 w-0.5 h-10 bg-border/50" />}
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 z-10 ${event.status === 'upcoming' ? 'bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]' :
-                      event.status === 'expired' ? 'bg-accent' : 'bg-secondary'
+                        event.status === 'expired' ? 'bg-accent' : 'bg-secondary'
                       }`}>
                       <div className="w-2 h-2 rounded-full bg-white opacity-40" />
                     </div>
@@ -110,6 +117,8 @@ const Dashboard = () => {
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
+
+            {/* Readiness Score card */}
             <GlassCard className="bg-primary/5 border-primary/20">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -121,7 +130,9 @@ const Dashboard = () => {
                 <span className="text-4xl font-bold text-foreground leading-none">82</span>
                 <span className="text-sm text-muted-foreground mb-1">/ 100</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed mb-6">You are in the top 15% of candidates for Engineering roles this month.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-6">
+                You are in the top 15% of candidates for Engineering roles this month.
+              </p>
               <Button
                 className="w-full rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                 onClick={handleBoostScore}
@@ -130,6 +141,7 @@ const Dashboard = () => {
               </Button>
             </GlassCard>
 
+            {/* Skill Breakdown */}
             <GlassCard>
               <h3 className="text-sm font-bold text-foreground mb-5">Skill Breakdown</h3>
               <div className="space-y-4">
@@ -139,6 +151,10 @@ const Dashboard = () => {
                 <ProgressBar value={55} label="System Design" variant="primary" />
               </div>
             </GlassCard>
+
+            {/* ✅ NEW: Badge System (Task 9) — in sidebar */}
+            <BadgeSystem />
+
           </div>
         </div>
       </div>
