@@ -63,7 +63,7 @@ const AIChatbot: React.FC = () => {
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       
       const chat = model.startChat({
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         history: messages
           .filter((m) => m.id !== 'welcome')
           .map((m) => ({
