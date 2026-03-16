@@ -1,4 +1,4 @@
-import { Award, FileText, Brain, BarChart3 } from "lucide-react";
+import { Award, FileText, Brain, BarChart3, Users } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import StatCard from "@/components/dashboard/StatCard";
 import RadarSkillChart from "@/components/charts/RadarSkillChart";
@@ -8,6 +8,9 @@ import GlassCard from "@/components/dashboard/GlassCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import ProgressWidget from "@/components/dashboard/ProgressWidget";
 import BadgeSystem from "@/components/dashboard/BadgeSystem";
 
@@ -15,6 +18,18 @@ import BadgeSystem from "@/components/dashboard/BadgeSystem";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showBenchmark, setShowBenchmark] = useState(false);
+  const [batchAvg, setBatchAvg] = useState(0);
+  const { supabaseUser } = useAuth();
+
+  useEffect(() => {
+    supabase.from("profiles").select("readiness_score").then(({ data }) => {
+      if (data && data.length > 0) {
+        const avg = Math.round(data.reduce((a, b) => a + (b.readiness_score || 0), 0) / data.length);
+        setBatchAvg(avg);
+      }
+    });
+  }, []);
 
   const handleBoostScore = () => {
     navigate("/dashboard/skills");
@@ -155,6 +170,38 @@ const Dashboard = () => {
             </GlassCard>
 
             <BadgeSystem />
+
+            <GlassCard>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">Peer Benchmark</h3>
+                </div>
+                <button onClick={() => setShowBenchmark(!showBenchmark)} className={"w-10 h-5 rounded-full transition-all relative " + (showBenchmark ? "bg-primary" : "bg-muted")}>
+                  <div className={"w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all " + (showBenchmark ? "left-5" : "left-0.5")} />
+                </button>
+              </div>
+              {showBenchmark && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Your score</span>
+                    <span className="text-sm font-bold text-primary">82</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Batch average</span>
+                    <span className="text-sm font-bold text-foreground">{batchAvg}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-muted rounded-full mt-2">
+                    <div className="h-full bg-primary rounded-full" style={{ width: "82%" }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    {82 > batchAvg ? "You are above batch average!" : "Keep practicing to reach batch average"}
+                  </p>
+                </div>
+              )}
+            </GlassCard>
 
 
 
