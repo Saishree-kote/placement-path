@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, GraduationCap, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Mail, Lock, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -13,32 +14,58 @@ const Login = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; general?: string }>({});
+
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, signUp } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const validate = () => {
     const errs: typeof errors = {};
     if (isSignUp && !name.trim()) errs.name = "Full name is required";
     if (!email.trim()) errs.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = "Enter a valid email";
     if (!password) errs.password = "Password is required";
-    else if (isSignUp && password.length < 6) errs.password = "Password must be at least 6 characters";
-    
+    else if (password.length < 6) errs.password = "Password must be at least 6 characters";
+    return errs;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs = validate();
     setErrors(errs);
-    
-    if (Object.keys(errs).length === 0) {
+    if (Object.keys(errs).length > 0) return;
+
+    setIsLoading(true);
+    try {
       if (isSignUp) {
-        toast({ title: "Account created!", description: "Welcome to PlacePrep." });
-        login(email, name);
+        const { error } = await signUp(email, password, name);
+        if (error) {
+          setErrors({ general: error });
+        } else {
+          toast({ title: "Account created!", description: "Welcome to PlacePrep!" });
+          navigate("/dashboard");
+        }
       } else {
-        const userName = email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        toast({ title: "Welcome back!", description: "Successfully signed in." });
-        login(email, userName);
+        const { error } = await login(email, password);
+        if (error) {
+          setErrors({ general: "Invalid email or password. Please try again." });
+        } else {
+          toast({ title: "Welcome back!", description: "Successfully signed in." });
+          navigate("/dashboard");
+        }
       }
-      navigate("/dashboard");
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
   };
 
   const toggleMode = () => {
@@ -50,13 +77,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--gradient-hero)" }}>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "var(--gradient-hero)" }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="glass-card p-8 w-full max-w-md"
       >
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-6 h-6 text-primary-foreground" />
@@ -69,7 +100,15 @@ const Login = () => {
           </p>
         </div>
 
+        {/* General error */}
+        {errors.general && (
+          <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive text-center">
+            {errors.general}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name field (sign up only) */}
           <AnimatePresence mode="popLayout">
             {isSignUp && (
               <motion.div
@@ -94,6 +133,7 @@ const Login = () => {
             )}
           </AnimatePresence>
 
+          {/* Email */}
           <div>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -107,7 +147,8 @@ const Login = () => {
             </div>
             {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
           </div>
-          
+
+          {/* Password */}
           <div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -129,8 +170,16 @@ const Login = () => {
             {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
           </div>
 
-          <Button type="submit" className="w-full rounded-xl h-11 bg-primary text-primary-foreground btn-glow font-semibold mt-2">
-            {isSignUp ? "Sign Up" : "Sign In"}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full rounded-xl h-11 bg-primary text-primary-foreground btn-glow font-semibold mt-2"
+          >
+            {isLoading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Please wait...</>
+            ) : (
+              isSignUp ? "Sign Up" : "Sign In"
+            )}
           </Button>
         </form>
 
@@ -140,13 +189,11 @@ const Login = () => {
           <div className="h-px flex-1 bg-border" />
         </div>
 
+        {/* Google OAuth */}
         <Button
           variant="outline"
           className="w-full rounded-xl h-11 border-border/50 font-medium"
-          onClick={() => {
-            login("demo@placeprep.com", "Demo User");
-            navigate("/dashboard");
-          }}
+          onClick={handleGoogleLogin}
         >
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
