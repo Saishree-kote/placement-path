@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -23,7 +23,18 @@ interface ProgressData {
     threshold: number;
 }
 
-const THRESHOLD = 70; // readiness score target
+const THRESHOLD = 70;
+
+const StatMini = ({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) => (
+    <div className="bg-muted/30 rounded-xl p-2">
+        <div className="flex items-center gap-1 mb-1">
+            {icon}
+            <span className="text-[10px] text-muted-foreground">{label}</span>
+        </div>
+        <p className="text-sm font-bold text-foreground">{value}</p>
+        <p className="text-[10px] text-muted-foreground">{sub}</p>
+    </div>
+);
 
 const ProgressWidget = () => {
     const { supabaseUser } = useAuth();
@@ -46,14 +57,12 @@ const ProgressWidget = () => {
         if (!supabaseUser) return;
         setLoading(true);
 
-        // Fetch profile score
         const { data: profile } = await supabase
             .from("profiles")
             .select("readiness_score")
             .eq("id", supabaseUser.id)
             .single();
 
-        // Fetch last 7 days of aptitude attempts
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
@@ -64,7 +73,6 @@ const ProgressWidget = () => {
             .gte("attempted_at", sevenDaysAgo.toISOString())
             .order("attempted_at", { ascending: true });
 
-        // Build weekly chart data
         const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         const weeklyMap: Record<string, { scores: number[]; tests: number }> = {};
 
@@ -90,17 +98,25 @@ const ProgressWidget = () => {
             tests: val.tests,
         }));
 
-        // Streak calculation
+        const calculateStreak = (att: { attempted_at: string }[]) => {
+            if (!att.length) return 0;
+            const uniqueDays = new Set(att.map((a) => new Date(a.attempted_at).toDateString()));
+            let streak = 0;
+            const today = new Date();
+            for (let i = 0; i < 30; i++) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                if (uniqueDays.has(d.toDateString())) streak++;
+                else break;
+            }
+            return streak;
+        };
+
         const streak = calculateStreak(attempts || []);
         localStorage.setItem("aptitude_streak", String(streak));
 
-        // Stats
-        const allScores = (attempts || []).map((a) =>
-            Math.round(((a.score || 0) / (a.total || 1)) * 100)
-        );
-        const avg = allScores.length
-            ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
-            : 0;
+        const allScores = (attempts || []).map((a) => Math.round(((a.score || 0) / (a.total || 1)) * 100));
+        const avg = allScores.length ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
 
         setData({
             readinessScore: profile?.readiness_score || 0,
@@ -113,34 +129,12 @@ const ProgressWidget = () => {
         setLoading(false);
     };
 
-    const calculateStreak = (attempts: { attempted_at: string }[]): number => {
-        if (!attempts.length) return 0;
-        const days = new Set(
-            attempts.map((a) => new Date(a.attempted_at).toDateString())
-        );
-        let streak = 0;
-        const today = new Date();
-        for (let i = 0; i < 30; i++) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            if (days.has(d.toDateString())) {
-                streak++;
-            } else {
-                break;
-            }
-        }
-        return streak;
-    };
-
     const radialData = [
         { name: "Score", value: data.readinessScore, fill: "#6366f1" },
         { name: "Target", value: THRESHOLD, fill: "#e2e8f0" },
     ];
 
-    const scoreColor =
-        data.readinessScore >= 75 ? "#22c55e"
-            : data.readinessScore >= 50 ? "#f59e0b"
-                : "#ef4444";
+    const scoreColor = data.readinessScore >= 75 ? "#22c55e" : data.readinessScore >= 50 ? "#f59e0b" : "#ef4444";
 
     if (loading) {
         return (
@@ -152,120 +146,73 @@ const ProgressWidget = () => {
     }
 
     return (
-        <div className="glass-card p-5 rounded-2xl space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-indigo-500" />
+        <div className="glass-card p-5 rounded-2xl space-y-5 flex flex-col xl:flex-row gap-6">
+            <div className="flex-1 space-y-5">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-indigo-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-sm text-foreground">Progress Tracker</h3>
+                            <p className="text-xs text-muted-foreground">This week's performance</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-sm text-foreground">Progress Tracker</h3>
-                        <p className="text-xs text-muted-foreground">This week's performance</p>
-                    </div>
-                </div>
-
-                {/* Streak badge */}
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                    <Flame className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-xs font-bold text-orange-600">{data.streakDays}d</span>
-                </div>
-            </div>
-
-            {/* Readiness score radial + stats */}
-            <div className="flex items-center gap-4">
-                {/* Radial chart */}
-                <div className="relative w-28 h-28 flex-shrink-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RadialBarChart
-                            cx="50%" cy="50%"
-                            innerRadius="65%" outerRadius="95%"
-                            data={radialData}
-                            startAngle={90} endAngle={-270}
-                        >
-                            <RadialBar dataKey="value" cornerRadius={6} background={{ fill: "#e2e8f0" }} />
-                        </RadialBarChart>
-                    </ResponsiveContainer>
-                    {/* Center text */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <motion.span
-                            className="text-2xl font-bold"
-                            style={{ color: scoreColor }}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                        >
-                            {data.readinessScore}
-                        </motion.span>
-                        <span className="text-[10px] text-muted-foreground">/ 100</span>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                        <Flame className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="text-xs font-bold text-orange-600">{data.streakDays}d</span>
                     </div>
                 </div>
 
-                {/* Stat cards */}
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                    <StatMini icon={<Target className="w-3.5 h-3.5 text-indigo-500" />}
-                        label="Target" value={`${THRESHOLD}`} sub="readiness" />
-                    <StatMini icon={<TrendingUp className="w-3.5 h-3.5 text-green-500" />}
-                        label="Avg Score" value={`${data.avgScore}%`} sub="this week" />
-                    <StatMini icon={<Calendar className="w-3.5 h-3.5 text-blue-500" />}
-                        label="Tests Done" value={String(data.totalTests)} sub="this week" />
-                    <StatMini icon={<Flame className="w-3.5 h-3.5 text-orange-500" />}
-                        label="Streak" value={`${data.streakDays}d`} sub="in a row" />
+                <div className="flex items-center gap-4">
+                    <div className="relative w-28 h-28 flex-shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadialBarChart cx="50%" cy="50%" innerRadius="65%" outerRadius="95%" data={radialData} startAngle={90} endAngle={-270}>
+                                <RadialBar dataKey="value" cornerRadius={6} background={{ fill: "#e2e8f0" }} />
+                            </RadialBarChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <motion.span className="text-2xl font-bold" style={{ color: scoreColor }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                                {data.readinessScore}
+                            </motion.span>
+                            <span className="text-[10px] text-muted-foreground">/ 100</span>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                        <StatMini icon={<Target className="w-3.5 h-3.5 text-indigo-500" />} label="Target" value={`${THRESHOLD}`} sub="readiness" />
+                        <StatMini icon={<TrendingUp className="w-3.5 h-3.5 text-green-500" />} label="Avg Score" value={`${data.avgScore}%`} sub="this week" />
+                        <StatMini icon={<Calendar className="w-3.5 h-3.5 text-blue-500" />} label="Tests Done" value={String(data.totalTests)} sub="this week" />
+                        <StatMini icon={<Flame className="w-3.5 h-3.5 text-orange-500" />} label="Streak" value={`${data.streakDays}d`} sub="in a row" />
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Readiness threshold: {THRESHOLD}</span>
+                    <span className={`font-semibold ${data.readinessScore >= THRESHOLD ? "text-green-500" : "text-orange-500"}`}>
+                        {data.readinessScore >= THRESHOLD ? "✓ Target reached!" : `${THRESHOLD - data.readinessScore} pts to go`}
+                    </span>
                 </div>
             </div>
 
-            {/* Threshold label */}
-            <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Readiness threshold: {THRESHOLD}</span>
-                <span className={`font-semibold ${data.readinessScore >= THRESHOLD ? "text-green-500" : "text-orange-500"}`}>
-                    {data.readinessScore >= THRESHOLD ? "✓ Target reached!" : `${THRESHOLD - data.readinessScore} pts to go`}
-                </span>
-            </div>
-
-            {/* Weekly bar chart */}
-            <div>
+            <div className="flex-1 min-h-[160px] flex flex-col justify-end">
                 <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                     <Calendar className="w-3 h-3" /> Weekly aptitude scores
                 </p>
-                <div className="h-24">
+                <div className="flex-1">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data.weeklyData} barSize={16}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                             <XAxis dataKey="day" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                             <YAxis hide domain={[0, 100]} />
-                            <Tooltip
-                                contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                                formatter={(val: number) => [`${val}%`, "Score"]}
-                            />
-                            <Bar dataKey="score" fill="#6366f1" radius={[4, 4, 0, 0]}
-                                label={false}
-                            />
-                            {/* Threshold line */}
-                            <Bar dataKey={() => THRESHOLD} fill="transparent" radius={0} />
+                            <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(val: number) => [`${val}%`, "Score"]} />
+                            <Bar dataKey="score" fill="#6366f1" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
-                {/* Threshold dashed line label */}
-                <div className="flex items-center gap-1 mt-1">
-                    <div className="w-4 h-0 border-t-2 border-dashed border-indigo-400" />
-                    <span className="text-[10px] text-muted-foreground">Target ({THRESHOLD})</span>
                 </div>
             </div>
         </div>
     );
 };
-
-// Mini stat card helper
-const StatMini = ({ icon, label, value, sub }: {
-    icon: React.ReactNode; label: string; value: string; sub: string;
-}) => (
-    <div className="bg-muted/30 rounded-xl p-2">
-        <div className="flex items-center gap-1 mb-1">{icon}
-            <span className="text-[10px] text-muted-foreground">{label}</span>
-        </div>
-        <p className="text-sm font-bold text-foreground">{value}</p>
-        <p className="text-[10px] text-muted-foreground">{sub}</p>
-    </div>
-);
 
 export default ProgressWidget;

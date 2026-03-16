@@ -8,6 +8,8 @@ import GlassCard from "@/components/dashboard/GlassCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import ProgressWidget from "@/components/dashboard/ProgressWidget";
+import BadgeSystem from "@/components/dashboard/BadgeSystem";
 
 
 const Dashboard = () => {
@@ -30,6 +32,8 @@ const Dashboard = () => {
           <StatCard title="Aptitude Score" value="78%" icon={Brain} trend={{ value: 3, positive: true }} variant="accent" delay={0.15} />
           <StatCard title="Skill Score" value="75%" icon={BarChart3} trend={{ value: 2, positive: false }} variant="primary" delay={0.2} />
         </div>
+
+        <ProgressWidget />
 
 
 
@@ -149,6 +153,8 @@ const Dashboard = () => {
                 <ProgressBar value={55} label="System Design" variant="primary" />
               </div>
             </GlassCard>
+
+            <BadgeSystem />
 
 
 
