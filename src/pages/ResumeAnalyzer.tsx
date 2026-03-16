@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, CheckCircle, AlertCircle, Lightbulb, Loader } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Lightbulb, Loader, Download } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import GlassCard from "@/components/dashboard/GlassCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
@@ -8,6 +8,8 @@ import AIInsights from "@/components/dashboard/AIInsights";
 import { resumeAnalysis } from "@/lib/dummyData";
 import { analyzeResumeWithAI } from "@/services/aiResumeAnalyzer";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
 
 interface ResumeAnalysisResult {
   overallScore: number;
@@ -30,14 +32,21 @@ const ResumeAnalyzer = () => {
   const [resumeText, setResumeText] = useState("");
   const [aiAnalysis, setAiAnalysis] = useState<ResumeAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resumePreviewRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { supabaseUser } = useAuth();
 
   const handleFileUpload = async (file: File) => {
     try {
       const text = await file.text();
       setResumeText(text);
       setUploaded(true);
+      // Mark resume as analyzed for badge system
+      if (supabaseUser) {
+        localStorage.setItem("resume_analyzed_" + supabaseUser.id, "true");
+      }
       await performAIAnalysis(text);
     } catch (error) {
       toast({
@@ -87,6 +96,57 @@ const ResumeAnalyzer = () => {
     }
   };
 
+  // ── PDF Export (Task 2) ──────────────────────────────────────────
+  const handleExportPDF = async () => {
+    if (!uploaded) {
+      toast({
+        title: "No resume to export",
+        description: "Please analyze your resume first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Dynamically import to keep bundle small
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const element = resumePreviewRef.current;
+      if (!element) throw new Error("Preview not found");
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save("resume-analysis.pdf");
+
+      toast({
+        title: "PDF exported!",
+        description: "Your resume analysis has been downloaded.",
+      });
+    } catch (err) {
+      toast({
+        title: "Export failed",
+        description: "Could not export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  // ────────────────────────────────────────────────────────────────
+
   return (
     <div>
       <DashboardNavbar title="Resume Analyzer" />
@@ -134,6 +194,28 @@ const ResumeAnalyzer = () => {
                 </>
               )}
             </motion.div>
+
+            {/* ✅ PDF Export Button */}
+            {uploaded && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4"
+              >
+                <Button
+                  onClick={handleExportPDF}
+                  disabled={isExporting}
+                  className="w-full rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                >
+                  {isExporting ? (
+                    <><Loader className="w-4 h-4 mr-2 animate-spin" /> Exporting...</>
+                  ) : (
+                    <><Download className="w-4 h-4 mr-2" /> Export Resume Analysis PDF</>
+                  )}
+                </Button>
+              </motion.div>
+            )}
           </GlassCard>
 
           {/* Analysis */}
@@ -184,6 +266,7 @@ const ResumeAnalyzer = () => {
                 ))}
               </div>
             </GlassCard>
+
             <GlassCard delay={0.3}>
               <div className="flex items-center gap-2 mb-4">
                 <Lightbulb className="w-4 h-4 text-secondary" />
@@ -198,6 +281,58 @@ const ResumeAnalyzer = () => {
                 ))}
               </ul>
             </GlassCard>
+          </div>
+        )}
+
+        {/* ✅ Resume preview div — this gets captured for PDF export */}
+        {uploaded && (
+          <div ref={resumePreviewRef} className="mt-6 p-6 bg-white rounded-2xl border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Resume Analysis Summary</h2>
+              <span className="text-3xl font-bold text-indigo-600">{resumeAnalysis.score}%</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                  Missing Skills
+                </h3>
+                <div className="flex flex-wrap gap-1">
+                  {resumeAnalysis.missingSkills.map((skill) => (
+                    <span key={skill} className="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-medium">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />
+                  Suggestions
+                </h3>
+                <ul className="space-y-1">
+                  {resumeAnalysis.suggestions.slice(0, 4).map((s, i) => (
+                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1">
+                      <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {aiAnalysis && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h3 className="font-semibold text-gray-700 mb-2">AI Career Advice</h3>
+                <p className="text-xs text-gray-600 leading-relaxed">{aiAnalysis.careerAdvice}</p>
+              </div>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-400 text-center">
+              Generated by PlacePrep — Student Placement Preparation Tracker
+            </div>
           </div>
         )}
 
