@@ -19,6 +19,7 @@ import Community from "./pages/Community";
 import Applications from "./pages/Applications";
 import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
+import Onboarding from "./pages/Onboarding";
 import BootingAnimation from "./components/BootingAnimation";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -92,6 +93,7 @@ const AppRoutes = () => {
             <Route path="settings" element={<DashboardSettings />} />
           </Route>
 
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}
