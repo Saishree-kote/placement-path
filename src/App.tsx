@@ -20,6 +20,7 @@ import Applications from "./pages/Applications";
 import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
+import Admin from "./pages/Admin";
 import BootingAnimation from "./components/BootingAnimation";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -94,6 +95,7 @@ const AppRoutes = () => {
           </Route>
 
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       )}

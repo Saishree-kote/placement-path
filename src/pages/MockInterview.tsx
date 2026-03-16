@@ -42,6 +42,7 @@ const MockInterview = () => {
     <div className="min-h-screen">
       <DashboardNavbar title="Mock Interview Simulator" />
       <div className="p-6">
+        <div id="mock-scheduler" />
         <AnimatePresence mode="wait">
           {!activeMode ? (
             <motion.div
