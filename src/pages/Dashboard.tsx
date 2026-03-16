@@ -8,8 +8,7 @@ import GlassCard from "@/components/dashboard/GlassCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import ProgressWidget from "@/components/dashboard/ProgressWidget";
-import BadgeSystem from "@/components/dashboard/BadgeSystem";
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,8 +31,7 @@ const Dashboard = () => {
           <StatCard title="Skill Score" value="75%" icon={BarChart3} trend={{ value: 2, positive: false }} variant="primary" delay={0.2} />
         </div>
 
-        {/* ✅ NEW: Progress Widget (Task 1) — full width below stats */}
-        <ProgressWidget />
+
 
         {/* Charts */}
         <div className="grid lg:grid-cols-2 gap-6">
@@ -152,8 +150,7 @@ const Dashboard = () => {
               </div>
             </GlassCard>
 
-            {/* ✅ NEW: Badge System (Task 9) — in sidebar */}
-            <BadgeSystem />
+
 
           </div>
         </div>
