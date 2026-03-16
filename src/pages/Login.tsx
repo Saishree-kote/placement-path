@@ -45,7 +45,7 @@ const Login = () => {
           setErrors({ general: error });
         } else {
           toast({ title: "Account created!", description: "Welcome to PlacePrep!" });
-          navigate("/dashboard");
+          navigate("/onboarding");
         }
       } else {
         const { error } = await login(email, password);
