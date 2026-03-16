@@ -99,6 +99,8 @@ const AppRoutes = () => {
   );
 };
 
+import AIChatbot from "./components/dashboard/AIChatbot";
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -108,6 +110,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <AppRoutes />
+            <AIChatbot />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
