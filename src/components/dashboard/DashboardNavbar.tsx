@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronLeft, ChevronRight, Moon, Sun, LogOut, User } from "lucide-react";
+import { Bell, Search, ChevronLeft, ChevronRight, Moon, Sun, LogOut, User, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
@@ -97,6 +97,15 @@ const DashboardNavbar = ({ title }: DashboardNavbarProps) => {
               onClick={() => navigate("/dashboard/settings")}
             >
               <User className="w-4 h-4 mr-2" /> Profile Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer rounded-xl"
+              onClick={() => {
+                sessionStorage.removeItem("pp_booted");
+                window.location.reload();
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" /> Reboot Webapp
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
