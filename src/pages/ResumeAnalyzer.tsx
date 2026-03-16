@@ -236,8 +236,8 @@ const ResumeAnalyzer = () => {
                       <ProgressBar
                         key={key}
                         label={key.charAt(0).toUpperCase() + key.slice(1)}
-                        value={val}
-                        variant={val >= 80 ? "secondary" : val >= 60 ? "primary" : "accent"}
+                        value={val as number}
+                        variant={(val as number) >= 80 ? "secondary" : (val as number) >= 60 ? "primary" : "accent"}
                         size="sm"
                       />
                     ))}
