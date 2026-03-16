@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import {
     User, GraduationCap, Code, FolderGit2,
-    CheckCircle, ChevronRight, ChevronLeft, Sparkles
+    CheckCircle, ChevronRight, ChevronLeft, Sparkles,
+    Plus, Trash2, ExternalLink
 } from "lucide-react";
 
 const SKILLS_LIST = [
@@ -24,9 +25,14 @@ const STEPS = [
     { id: 4, title: "Projects", icon: FolderGit2, desc: "Show your work" },
 ];
 
+interface Project {
+    name: string;
+    desc: string;
+    link: string;
+}
+
 interface FormData {
     full_name: string;
-    email: string;
     phone: string;
     college: string;
     branch: string;
@@ -35,11 +41,10 @@ interface FormData {
     skills: string[];
     linkedin_url: string;
     portfolio_url: string;
-    project1_name: string;
-    project1_desc: string;
-    project2_name: string;
-    project2_desc: string;
+    projects: Project[];
 }
+
+const emptyProject = (): Project => ({ name: "", desc: "", link: "" });
 
 const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
     const { supabaseUser, user } = useAuth();
@@ -49,7 +54,6 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState<FormData>({
         full_name: user?.name || "",
-        email: user?.email || "",
         phone: "",
         college: "",
         branch: "",
@@ -58,10 +62,7 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
         skills: [],
         linkedin_url: "",
         portfolio_url: "",
-        project1_name: "",
-        project1_desc: "",
-        project2_name: "",
-        project2_desc: "",
+        projects: [emptyProject()],
     });
 
     const update = (key: keyof FormData, value: string) =>
@@ -76,7 +77,26 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
         }));
     };
 
-    // Readiness score preview
+    const updateProject = (index: number, field: keyof Project, value: string) => {
+        setForm((f) => {
+            const updated = [...f.projects];
+            updated[index] = { ...updated[index], [field]: value };
+            return { ...f, projects: updated };
+        });
+    };
+
+    const addProject = () => {
+        setForm((f) => ({ ...f, projects: [...f.projects, emptyProject()] }));
+    };
+
+    const removeProject = (index: number) => {
+        setForm((f) => ({
+            ...f,
+            projects: f.projects.filter((_, i) => i !== index),
+        }));
+    };
+
+    // Live readiness score preview
     const previewScore = () => {
         let score = 0;
         if (form.full_name) score += 10;
@@ -87,8 +107,8 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
         if (form.skills.length >= 7) score += 10;
         if (form.linkedin_url) score += 10;
         if (form.portfolio_url) score += 10;
-        if (form.project1_name) score += 10;
-        if (form.project2_name) score += 5;
+        if (form.projects[0]?.name) score += 10;
+        if (form.projects.length >= 2) score += 5;
         return Math.min(score, 100);
     };
 
@@ -109,9 +129,14 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
 
             if (error) throw error;
 
+            // Mark profile as complete for badge system
+            if (supabaseUser) {
+                localStorage.setItem("profile_complete_" + supabaseUser.id, "true");
+            }
+
             toast({
                 title: "Profile saved!",
-                description: `Your readiness score is ${score}/100`,
+                description: "Your readiness score is " + score + "/100",
             });
 
             if (onComplete) onComplete();
@@ -131,8 +156,10 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
     const scoreColor = score >= 70 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444";
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-8"
-            style={{ background: "var(--gradient-hero)" }}>
+        <div
+            className="min-h-screen flex items-center justify-center px-4 py-8"
+            style={{ background: "var(--gradient-hero)" }}
+        >
             <div className="w-full max-w-2xl">
 
                 {/* Header */}
@@ -169,7 +196,7 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                     ))}
                 </div>
 
-                {/* Score preview */}
+                {/* Live score preview */}
                 <div className="glass-card p-4 rounded-2xl mb-6 flex items-center justify-between">
                     <div>
                         <p className="text-xs text-muted-foreground">Readiness Score Preview</p>
@@ -182,7 +209,7 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                             <motion.div
                                 className="h-full rounded-full"
                                 style={{ backgroundColor: scoreColor }}
-                                animate={{ width: `${score}%` }}
+                                animate={{ width: score + "%" }}
                                 transition={{ duration: 0.5 }}
                             />
                         </div>
@@ -195,8 +222,13 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                 {/* Step content */}
                 <div className="glass-card p-6 rounded-2xl">
                     <AnimatePresence mode="wait">
+
+                        {/* Step 1 — Basic Info */}
                         {step === 1 && (
-                            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <motion.div key="step1"
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="space-y-4"
+                            >
                                 <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
                                     <User className="w-4 h-4 text-primary" /> Basic Information
                                 </h2>
@@ -225,8 +257,12 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                             </motion.div>
                         )}
 
+                        {/* Step 2 — Academic */}
                         {step === 2 && (
-                            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <motion.div key="step2"
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="space-y-4"
+                            >
                                 <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
                                     <GraduationCap className="w-4 h-4 text-primary" /> Academic Details
                                 </h2>
@@ -261,15 +297,18 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                             </motion.div>
                         )}
 
+                        {/* Step 3 — Skills */}
                         {step === 3 && (
-                            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                            <motion.div key="step3"
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                            >
                                 <h2 className="text-base font-semibold text-foreground mb-2 flex items-center gap-2">
                                     <Code className="w-4 h-4 text-primary" /> Your Skills
                                 </h2>
                                 <p className="text-xs text-muted-foreground mb-4">
                                     Select all that apply — {form.skills.length} selected
                                 </p>
-                                <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto pr-1">
                                     {SKILLS_LIST.map((skill) => (
                                         <button
                                             key={skill}
@@ -286,27 +325,73 @@ const OnboardingWizard = ({ onComplete }: { onComplete?: () => void }) => {
                             </motion.div>
                         )}
 
+                        {/* Step 4 — Projects */}
                         {step === 4 && (
-                            <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                            <motion.div key="step4"
+                                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                                className="space-y-4"
+                            >
                                 <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
                                     <FolderGit2 className="w-4 h-4 text-primary" /> Your Projects
                                 </h2>
-                                <div className="p-4 rounded-xl bg-muted/20 border border-border space-y-3">
-                                    <p className="text-xs font-medium text-foreground">Project 1</p>
-                                    <Input value={form.project1_name} onChange={(e) => update("project1_name", e.target.value)}
-                                        placeholder="Project name" className="rounded-xl h-10" />
-                                    <Input value={form.project1_desc} onChange={(e) => update("project1_desc", e.target.value)}
-                                        placeholder="Brief description (tech stack, what it does)" className="rounded-xl h-10" />
+
+                                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                    {form.projects.map((project, index) => (
+                                        <motion.div
+                                            key={index}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="p-4 rounded-xl bg-muted/20 border border-border space-y-2"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-xs font-semibold text-foreground">
+                                                    Project {index + 1}
+                                                </p>
+                                                {form.projects.length > 1 && (
+                                                    <button
+                                                        onClick={() => removeProject(index)}
+                                                        className="text-muted-foreground hover:text-destructive transition-colors"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <Input
+                                                value={project.name}
+                                                onChange={(e) => updateProject(index, "name", e.target.value)}
+                                                placeholder="Project name (e.g. PlacePrep)"
+                                                className="rounded-xl h-9 text-sm"
+                                            />
+                                            <Input
+                                                value={project.desc}
+                                                onChange={(e) => updateProject(index, "desc", e.target.value)}
+                                                placeholder="Brief description (tech stack, what it does)"
+                                                className="rounded-xl h-9 text-sm"
+                                            />
+                                            <div className="relative">
+                                                <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                <Input
+                                                    value={project.link}
+                                                    onChange={(e) => updateProject(index, "link", e.target.value)}
+                                                    placeholder="https://github.com/yourname/project"
+                                                    className="rounded-xl h-9 text-sm pl-8"
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    ))}
                                 </div>
-                                <div className="p-4 rounded-xl bg-muted/20 border border-border space-y-3">
-                                    <p className="text-xs font-medium text-foreground">Project 2 (optional)</p>
-                                    <Input value={form.project2_name} onChange={(e) => update("project2_name", e.target.value)}
-                                        placeholder="Project name" className="rounded-xl h-10" />
-                                    <Input value={form.project2_desc} onChange={(e) => update("project2_desc", e.target.value)}
-                                        placeholder="Brief description" className="rounded-xl h-10" />
-                                </div>
+
+                                {/* Add project button */}
+                                <button
+                                    onClick={addProject}
+                                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-border hover:border-primary/50 text-sm text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add another project
+                                </button>
                             </motion.div>
                         )}
+
                     </AnimatePresence>
 
                     {/* Navigation */}
