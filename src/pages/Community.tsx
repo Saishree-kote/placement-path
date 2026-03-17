@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, ThumbsUp, Share2, User, Search, Filter, PlusCircle, Bookmark, X } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
@@ -6,56 +6,70 @@ import GlassCard from "@/components/dashboard/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 
-const initialPosts = [
-    {
-        id: 1,
-        author: "Rahul S.",
-        role: "Placed at Google",
-        content: "Just finished my interview with Google! The technical rounds were heavy on Graphs and System Design. My biggest tip: Always explain your thought process out loud, even if you are stuck.",
-        likes: 124,
-        comments: 18,
-        category: "Interview Experience",
-        time: "2h ago",
-        bookmarked: false,
-        liked: false,
-    },
-    {
-        id: 2,
-        author: "Sneha K.",
-        role: "Final Year, CSE",
-        content: "Does anyone have a good roadmap for learning DP? I'm struggling with the 'State' definition in complex problems. Any help is appreciated!",
-        likes: 45,
-        comments: 32,
-        category: "Doubt",
-        time: "5h ago",
-        bookmarked: false,
-        liked: false,
-    },
-    {
-        id: 3,
-        author: "PlacePrep Bot",
-        role: "AI Assistant",
-        content: "Tip of the day: 70% of recruiters look for 'Cultural Fit' during HR rounds. Don't forget to research the company values before your interview!",
-        likes: 210,
-        comments: 5,
-        category: "AI Tip",
-        time: "10h ago",
-        bookmarked: false,
-        liked: false,
-    }
-];
+type Post = {
+    id: number;
+    author: string;
+    role: string;
+    content: string;
+    likes: number;
+    comments: number;
+    category: string;
+    time: string;
+    bookmarked: boolean;
+    liked: boolean;
+    created_at?: string;
+};
 
 const ALL_CATEGORIES = ["All", "Interview Experience", "Doubt", "AI Tip"];
 
 const Community = () => {
     const { toast } = useToast();
-    const [posts, setPosts] = useState(initialPosts);
+    const { user } = useAuth();
+    const [posts, setPosts] = useState<Post[]>([]);
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState("All");
     const [showFilter, setShowFilter] = useState(false);
     const [showNewPost, setShowNewPost] = useState(false);
     const [newContent, setNewContent] = useState("");
+
+    // Fetch initial posts and subscribe to new ones
+    useEffect(() => {
+        fetchPosts();
+
+        const channel = supabase
+            .channel('public:community_posts')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_posts' }, (payload) => {
+                const newPost = payload.new as Post;
+                setPosts((prev) => [newPost, ...prev]);
+            })
+             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'community_posts' }, (payload) => {
+                const updatedPost = payload.new as Post;
+                setPosts((prev) => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    const fetchPosts = async () => {
+        const { data, error } = await supabase
+            .from('community_posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Error fetching posts:', error);
+            // Fallback to empty array if table doesn't exist yet
+            setPosts([]);
+        } else if (data) {
+            setPosts(data);
+        }
+    };
 
     const filtered = posts.filter(p => {
         const matchesSearch = p.content.toLowerCase().includes(search.toLowerCase()) ||
@@ -64,11 +78,18 @@ const Community = () => {
         return matchesSearch && matchesCategory;
     });
 
-    const handleLike = (id: number) => {
-        setPosts(prev => prev.map(p => p.id === id
-            ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-            : p
-        ));
+    const handleLike = async (id: number) => {
+        const post = posts.find(p => p.id === id);
+        if (!post) return;
+        
+        const newLiked = !post.liked;
+        const newLikes = newLiked ? post.likes + 1 : Math.max(0, post.likes - 1);
+
+        // Optimistic update
+        setPosts(prev => prev.map(p => p.id === id ? { ...p, liked: newLiked, likes: newLikes } : p));
+
+        // Update database (simplified like toggle for demo)
+        await supabase.from('community_posts').update({ likes: newLikes }).eq('id', id);
     };
 
     const handleBookmark = (id: number) => {
@@ -80,7 +101,7 @@ const Community = () => {
         toast({ title: post?.bookmarked ? "Removed from bookmarks" : "Bookmarked!", description: "You can find saved posts in your profile." });
     };
 
-    const handleShare = (post: typeof initialPosts[0]) => {
+    const handleShare = (post: Post) => {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(`"${post.content}" — ${post.author}, PlacePrep Community`);
             toast({ title: "Copied to clipboard!", description: "Share this post with your friends." });
@@ -89,15 +110,17 @@ const Community = () => {
         }
     };
 
-    const handleComment = (post: typeof initialPosts[0]) => {
+    const handleComment = (post: Post) => {
         toast({ title: `Viewing ${post.comments} comments`, description: "Comment thread will open soon." });
     };
 
-    const handleNewPost = () => {
+    const handleNewPost = async () => {
         if (!newContent.trim()) return;
-        const newPost = {
-            id: Date.now(),
-            author: "You",
+        
+        const authorName = user?.name || user?.email?.split('@')[0] || "Student";
+        
+        const newPostData = {
+            author: authorName,
             role: "Student",
             content: newContent,
             likes: 0,
@@ -105,12 +128,29 @@ const Community = () => {
             category: "Doubt",
             time: "Just now",
             bookmarked: false,
-            liked: false,
+            liked: false
         };
-        setPosts(prev => [newPost, ...prev]);
+
+        // If table doesn't exist, this will fail gracefully and we do optimistic local update for demo purposes
+        const { data, error } = await supabase.from('community_posts').insert([newPostData]).select();
+        
+        if (error) {
+             console.error('Insert error:', error);
+             // Optimistic fallback if DB isn't ready
+             const fallbackPost: Post = { ...newPostData, id: Date.now() };
+             setPosts(prev => [fallbackPost, ...prev]);
+             toast({ title: "Post published locally", description: "Database table not ready, showing locally for now." });
+        } else {
+             toast({ title: "Post published!", description: "Your discussion is now live." });
+             // We rely on real-time subscription to update the list if insert succeeds
+             // Or explicitly add if no realtime
+             if (!supabase.getChannels().some(c => c.topic === 'realtime:public:community_posts')) {
+                fetchPosts();
+             }
+        }
+        
         setNewContent("");
         setShowNewPost(false);
-        toast({ title: "Post published!", description: "Your discussion is now live." });
     };
 
     return (
@@ -187,7 +227,7 @@ const Community = () => {
 
                     <div className="space-y-6">
                         {filtered.length === 0 && (
-                            <p className="text-center text-muted-foreground py-12">No posts match your search.</p>
+                            <p className="text-center text-muted-foreground py-12">No posts match your search. Make sure the database table exists and has data!</p>
                         )}
                         {filtered.map((post, i) => (
                             <motion.div
@@ -253,3 +293,4 @@ const Community = () => {
 };
 
 export default Community;
+

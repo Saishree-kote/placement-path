@@ -18,7 +18,7 @@ const AptitudeTest = () => {
   const [timer, setTimer] = useState(0);
   const [score, setScore] = useState(0);
 
-  // ✅ Reminder state
+  const [warnings, setWarnings] = useState(0);
   const [reminderTime, setReminderTime] = useState("09:00");
   const [reminderSet, setReminderSet] = useState(() => !!localStorage.getItem("aptitude_reminder"));
   const [showReminderPanel, setShowReminderPanel] = useState(false);
@@ -32,8 +32,52 @@ const AptitudeTest = () => {
     return () => clearInterval(interval);
   }, [phase]);
 
+  // Anti-cheat: Listen for tab changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && phase === "test") {
+        setWarnings(w => {
+          const newWarnings = w + 1;
+          if (newWarnings > 3) {
+            toast({
+              title: "Test Terminated",
+              description: "You left the tab too many times. Test has been cancelled.",
+              variant: "destructive"
+            });
+            setPhase("setup");
+            if (document.fullscreenElement) document.exitFullscreen().catch(console.error);
+            return 0;
+          } else {
+            toast({
+              title: "Warning!",
+              description: `Please do not switch tabs. Warning ${newWarnings}/3`,
+              variant: "destructive"
+            });
+            return newWarnings;
+          }
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [phase, toast]);
+
   const startTest = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (e) {
+      console.error("Fullscreen blocked", e);
+      toast({
+         title: "Fullscreen Required",
+         description: "Please allow fullscreen to start the proctored test.",
+         variant: "destructive"
+      });
+      // Continue anyway or block? Let's continue but they might be prompted
+    }
+    
     setPhase("loading");
+    setWarnings(0);
     const count = sessionType === "unlimited" ? 5 : questionCount;
     const initialQuestions = await generateAptitudeQuestions(count);
     setQuestions(initialQuestions);
@@ -62,6 +106,7 @@ const AptitudeTest = () => {
       setSelected(null);
       setPhase("test");
     } else {
+      if (document.fullscreenElement) document.exitFullscreen().catch(console.error);
       setPhase("result");
     }
   };
@@ -260,7 +305,10 @@ const AptitudeTest = () => {
                       </div>
                       <div className="flex gap-3">
                         {sessionType === "unlimited" && (
-                          <Button variant="outline" onClick={() => setPhase("result")} className="rounded-xl border-border/50">Finish Now</Button>
+                          <Button variant="outline" onClick={() => {
+                            if (document.fullscreenElement) document.exitFullscreen().catch(console.error);
+                            setPhase("result");
+                          }} className="rounded-xl border-border/50">Finish Now</Button>
                         )}
                         <Button onClick={handleNext} disabled={selected === null} className="rounded-xl bg-primary text-primary-foreground btn-glow px-8">
                           {currentQ < questions.length - 1 || sessionType === "unlimited" ? "Next" : "Submit"}
